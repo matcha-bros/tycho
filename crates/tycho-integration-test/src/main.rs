@@ -167,8 +167,8 @@ struct Cli {
     #[arg(long, default_value_t = 10, value_parser = clap::value_parser!(u16).range(1..))]
     router_fee: u16,
 
-    /// Disable on-chain swap execution via Tenderly (simulation only, no execution validation).
-    /// Useful for diagnosing stream latency without Tenderly congestion.
+    /// Disable on-chain swap execution validation (RPC simulation only, no swap encoding or
+    /// execution). Useful for diagnosing stream latency without execution overhead.
     #[arg(long, default_value_t = false)]
     disable_execution: bool,
 }
