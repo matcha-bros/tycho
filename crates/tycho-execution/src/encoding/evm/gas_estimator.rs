@@ -105,10 +105,9 @@ pub fn estimate_gas_usage(solution: &Solution, strategy: Strategy) -> BigUint {
     // already route output through the router, the fee path adds an extra transfer.
     if let Some(last_swap) = solution.swaps().last() {
         let protocol: &str = &last_swap.component().protocol_system;
-        if (ROUTER_FEES_ACTIVE || strategy == Strategy::Split) &&
-            !PROTOCOLS_OUTPUT_TO_ROUTER.contains(&protocol)
-        {
-            // there is one extra token transfer
+        let final_swap_output_to_router = (ROUTER_FEES_ACTIVE || strategy == Strategy::Split) &&
+            !PROTOCOLS_OUTPUT_TO_ROUTER.contains(&protocol);
+        if final_swap_output_to_router {
             total_gas += transfer_token_gas(last_swap.token_out());
         }
     }
@@ -160,12 +159,12 @@ fn estimate_transfer_overhead(
     let mut overhead = BigUint::ZERO;
 
     // Input transfer: only needed when it happens outside swap().
-    // Callback protocols handle it inside the callback (part of swap gas).
-    // Protocols that can have an optimizable transfer in should not be included here either because
-    // the extra transfer is skipped
+    // - Callback protocols handle it inside the callback (part of swap gas).
+    // - Protocols that can have an optimizable transfer in should not be included here either
+    //   because the extra transfer is skipped but only if the strategy is not Split
     if !PROTOCOLS_CALLBACK.contains(&protocol_system) &&
-        !PROTOCOLS_OPTIMIZABLE_TRANSFER_IN.contains(&protocol_system) &&
-        *strategy != Strategy::Split
+        (!PROTOCOLS_OPTIMIZABLE_TRANSFER_IN.contains(&protocol_system) ||
+            *strategy == Strategy::Split)
     {
         overhead += transfer_token_gas(token_in);
     }
@@ -304,10 +303,10 @@ mod tests {
         let gas = estimate_gas_usage(&solution, Strategy::Split);
 
         // user transfer (TransferFrom)          40_000  ← DEFAULT_TOKEN_TRANSFER_GAS
+        // transfer for leg1 (not optimized)     60_000  ← TOKEN_GAS
         // leg1 pool gas                        100_000
         // leg2 pool gas                        100_000
         // extra output transfer (→ router)       60_000  ← TOKEN_GAS
-        // fee overhead                               0  ← skipped for Split strategy
-        assert_eq!(gas, BigUint::from(300_000u64));
+        assert_eq!(gas, BigUint::from(360_000u64));
     }
 }
