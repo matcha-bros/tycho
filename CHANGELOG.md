@@ -1,3 +1,18 @@
+## [0.298.0](https://github.com/propeller-heads/tycho-indexer/compare/0.297.2...0.298.0) (2026-05-21)
+
+
+### Features
+
+* add PendingBlockProcessor and TxDeltaIndexer infrastructure ([7bd0904](https://github.com/propeller-heads/tycho-indexer/commit/7bd090485baded4f638a8a004ae6aeb516dd0def))
+* add PendingBlockProcessor and TxDeltaIndexer infrastructure ([#1029](https://github.com/propeller-heads/tycho-indexer/issues/1029)) ([0734b72](https://github.com/propeller-heads/tycho-indexer/commit/0734b7238056cf715e9fadaf6eab835044b6613d))
+* Add Polygon and Arbitrum defaults to integration test ([3d05b68](https://github.com/propeller-heads/tycho-indexer/commit/3d05b6885c4344448b0f8103495f5815214e5ce6))
+* Add Polygon and Arbitrum defaults to integration test ([#1035](https://github.com/propeller-heads/tycho-indexer/issues/1035)) ([1ac5df7](https://github.com/propeller-heads/tycho-indexer/commit/1ac5df732995b282d854bd42e853bd491e0923b2))
+
+
+### Bug Fixes
+
+* address review comments on PendingBlockProcessor ([c09ba67](https://github.com/propeller-heads/tycho-indexer/commit/c09ba67e7fedd60e63865f2d32ddf17b15a8cdb2))
+
 ## [0.297.2](https://github.com/propeller-heads/tycho-indexer/compare/0.297.1...0.297.2) (2026-05-21)
 
 
