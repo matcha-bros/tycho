@@ -1,3 +1,11 @@
+## [0.300.3](https://github.com/propeller-heads/tycho-indexer/compare/0.300.2...0.300.3) (2026-05-22)
+
+
+### Bug Fixes
+
+* **ci:** Publish tycho-execution before tycho-simulation ([da5691e](https://github.com/propeller-heads/tycho-indexer/commit/da5691ec35134f69014412f80c9e55ecf3871950))
+* **ci:** Publish tycho-execution before tycho-simulation ([#1040](https://github.com/propeller-heads/tycho-indexer/issues/1040)) ([4dd32ca](https://github.com/propeller-heads/tycho-indexer/commit/4dd32ca749deffe4a8fc41f595465549f707448e))
+
 ## [0.300.2](https://github.com/propeller-heads/tycho-indexer/compare/0.300.1...0.300.2) (2026-05-21)
 
 
