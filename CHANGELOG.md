@@ -1,3 +1,27 @@
+## [0.300.5](https://github.com/propeller-heads/tycho-indexer/compare/0.300.4...0.300.5) (2026-05-22)
+
+
+### Bug Fixes
+
+* remove unused tycho-test dev dependency from simulation ([496a3e5](https://github.com/propeller-heads/tycho-indexer/commit/496a3e5a93e81656a4dd2da1fffc7fe713cda92f))
+* remove unused tycho-test dev dependency from simulation ([#1043](https://github.com/propeller-heads/tycho-indexer/issues/1043)) ([5c44fd4](https://github.com/propeller-heads/tycho-indexer/commit/5c44fd4db7b84f1e27743e6423cd103584af900e))
+
+## [0.300.4](https://github.com/propeller-heads/tycho-indexer/compare/0.300.3...0.300.4) (2026-05-22)
+
+
+### Bug Fixes
+
+* **simulation:** add 0x276084 to Fluid V1 paused pools filter ([77cae93](https://github.com/propeller-heads/tycho-indexer/commit/77cae93d89a941ac7886173b126fe1ebc8f5bc55))
+* **simulation:** add 0x276084 to Fluid V1 paused pools filter ([#1042](https://github.com/propeller-heads/tycho-indexer/issues/1042)) ([f7b1bf5](https://github.com/propeller-heads/tycho-indexer/commit/f7b1bf55c5143f4c4dafffad4ef632d79f67958d))
+
+## [0.300.3](https://github.com/propeller-heads/tycho-indexer/compare/0.300.2...0.300.3) (2026-05-22)
+
+
+### Bug Fixes
+
+* **ci:** Publish tycho-execution before tycho-simulation ([da5691e](https://github.com/propeller-heads/tycho-indexer/commit/da5691ec35134f69014412f80c9e55ecf3871950))
+* **ci:** Publish tycho-execution before tycho-simulation ([#1040](https://github.com/propeller-heads/tycho-indexer/issues/1040)) ([4dd32ca](https://github.com/propeller-heads/tycho-indexer/commit/4dd32ca749deffe4a8fc41f595465549f707448e))
+
 ## [0.300.2](https://github.com/propeller-heads/tycho-indexer/compare/0.300.1...0.300.2) (2026-05-21)
 
 
