@@ -1,3 +1,11 @@
+## [0.301.0](https://github.com/propeller-heads/tycho-indexer/compare/0.300.5...0.301.0) (2026-05-25)
+
+
+### Features
+
+* **tycho-client:** move runtime snapshot fetches off the delta hot path ([92abe66](https://github.com/propeller-heads/tycho-indexer/commit/92abe66736513ed4c830d5e43a7c2e14af0ca6a9))
+* **tycho-client:** move runtime snapshot fetches off the delta hot path ([#1031](https://github.com/propeller-heads/tycho-indexer/issues/1031)) ([47f9449](https://github.com/propeller-heads/tycho-indexer/commit/47f9449b89b5a14a088f4f91cc99e60292fceec0))
+
 ## [0.300.5](https://github.com/propeller-heads/tycho-indexer/compare/0.300.4...0.300.5) (2026-05-22)
 
 
