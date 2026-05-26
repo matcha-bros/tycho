@@ -129,7 +129,10 @@ use crate::{
     evm::{
         decoder::{StreamDecodeError, TychoStreamDecoder},
         pending::PendingBlockProcessor,
-        protocol::uniswap_v4::hooks::hook_handler_creator::initialize_hook_handlers,
+        protocol::{
+            native_wrapper::state::{WrapperState, NATIVE_WRAPPER_ID},
+            uniswap_v4::hooks::hook_handler_creator::initialize_hook_handlers,
+        },
     },
     protocol::{
         errors::InvalidSnapshotError,
@@ -234,7 +237,10 @@ impl ProtocolStreamBuilder {
         }
 
         if EXCHANGES_REQUIRING_FILTER.contains(&name) && filter_fn.is_none() {
-            warn!("Warning: For exchange type '{}', it is necessary to set a filter function because not all pools are supported. See all filters at src/evm/protocol/filters.rs", name);
+            warn!(
+                "Warning: For exchange type '{}', it is necessary to set a filter function because not all pools are supported. See all filters at src/evm/protocol/filters.rs",
+                name
+            );
         }
 
         self
@@ -286,7 +292,10 @@ impl ProtocolStreamBuilder {
         }
 
         if EXCHANGES_REQUIRING_FILTER.contains(&name) && filter_fn.is_none() {
-            warn!("Warning: For exchange type '{}', it is necessary to set a filter function because not all pools are supported. See all filters at src/evm/protocol/filters.rs", name);
+            warn!(
+                "Warning: For exchange type '{}', it is necessary to set a filter function because not all pools are supported. See all filters at src/evm/protocol/filters.rs",
+                name
+            );
         }
 
         self
@@ -542,6 +551,7 @@ impl ProtocolStreamBuilder {
                     }
                 }),
         );
+        let stream = inject_native_wrapper(stream, self.chain);
         Ok((stream, pending))
     }
 
@@ -557,6 +567,7 @@ impl ProtocolStreamBuilder {
         })?;
         let (_, rx) = self.stream_builder.build().await?;
         let decoder = Arc::new(self.decoder);
+        let chain = self.chain;
 
         let stream = Box::pin(
             ReceiverStream::new(rx)
@@ -582,9 +593,9 @@ impl ProtocolStreamBuilder {
                     }
                 })
                 .then({
-                    let decoder = decoder.clone(); // Clone the decoder for the closure
+                    let decoder = decoder.clone();
                     move |msg| {
-                        let decoder = decoder.clone(); // Clone again for the async block
+                        let decoder = decoder.clone();
                         async move {
                             let msg = msg.expect("Save since stream ends if we receive an error");
                             decoder.decode(&msg).await.map_err(|e| {
@@ -595,6 +606,37 @@ impl ProtocolStreamBuilder {
                     }
                 }),
         );
+        let stream = inject_native_wrapper(stream, chain);
         Ok(stream)
     }
+}
+
+/// Wraps a decoded protocol stream to inject a `WrapperState` component
+/// on the first successful update.
+///
+/// Skips injection for chains where the native and wrapped-native tokens share
+/// the same address (e.g. Starknet).
+fn inject_native_wrapper(
+    stream: impl Stream<Item = Result<Update, StreamDecodeError>>,
+    chain: Chain,
+) -> impl Stream<Item = Result<Update, StreamDecodeError>> {
+    let has_distinct_wrapper = chain.native_token().address != chain.wrapped_native_token().address;
+    let mut injected = false;
+
+    stream.map(move |result| {
+        if !has_distinct_wrapper || injected {
+            return result;
+        }
+        result.map(|mut update| {
+            injected = true;
+            update
+                .new_pairs
+                .insert(NATIVE_WRAPPER_ID.to_string(), WrapperState::component(chain));
+            update
+                .states
+                .insert(NATIVE_WRAPPER_ID.to_string(), Box::new(WrapperState::new(chain)));
+            debug!("Injected native_wrapper component for {chain}");
+            update
+        })
+    })
 }
