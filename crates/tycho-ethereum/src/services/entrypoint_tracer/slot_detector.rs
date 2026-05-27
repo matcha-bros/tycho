@@ -349,17 +349,14 @@ impl<S: SlotDetectionStrategy> SlotDetector<S> {
 
     /// Sort slots by priority for testing.
     ///
-    /// Primary sort: Distance to expected balance (closest first)
-    /// Secondary sort: Reverse index (last accessed first, used as tiebreaker)
-    ///
-    /// This sorting is done once when we first get the slot candidates.
-    fn sort_slots_by_priority(slots: &mut SlotValues, original_value: U256) {
-        slots.sort_by_key(|(_, new_value)| {
-            // Primary: distance to original balance (closer is better)
-            // Note: We can't use reverse index here as a secondary key in a simple way,
-            // but the initial order from the trace is already in access order,
-            // so slots with the same distance will maintain their relative order (stable sort)
-            new_value.abs_diff(original_value)
+    /// Primary: slots at the token's own address first (most common case).
+    /// Secondary: distance to original value (closer first).
+    fn sort_slots_by_priority(slots: &mut SlotValues, token: &Address, original_value: U256) {
+        slots.sort_by_key(|((storage_addr, _), new_value)| {
+            // Primary: token-address slots first (precompiles / external storage last)
+            // Secondary: distance to original balance (closer is better)
+            let is_foreign = storage_addr != token;
+            (is_foreign, new_value.abs_diff(original_value))
         });
     }
 
@@ -429,10 +426,9 @@ impl<S: SlotDetectionStrategy> SlotDetector<S> {
 
     /// Detects the correct storage slot by testing candidates with storage overrides.
     ///
-    /// Testing order:
-    /// 1. Start with the slot whose value is closest to the original allowance
-    /// 2. Fall back to the last accessed slot
-    /// 3. Try remaining slots in reverse order (most recently accessed first)
+    /// Candidates are sorted by priority (token-address first, then value distance) and tested in
+    /// order. If a candidate fails with a transport error (e.g. chain disallows overriding a
+    /// precompile address), it is dropped and the next candidate is retried.
     async fn detect_correct_slots(
         &self,
         token_slots: DetectedSlotsResults,
@@ -445,17 +441,10 @@ impl<S: SlotDetectionStrategy> SlotDetector<S> {
         for (token, result) in token_slots {
             match result {
                 Ok((mut all_slots, original_value)) => {
-                    // Only keep slots stored at the token's own address.
-                    // ERC-20 balances/allowances are always at the token address
-                    // (even for proxy contracts using delegatecall). This filters
-                    // out noise from chain-specific precompiles (e.g. Arbitrum
-                    // ArbOS at 0xa4b05fff...) and other contracts in the trace.
-                    all_slots.retain(|((storage_addr, _), _)| *storage_addr == token);
-
                     if all_slots.is_empty() {
                         detected_results.insert(token, Err(SlotDetectorError::TokenNotInTrace));
                     } else {
-                        Self::sort_slots_by_priority(&mut all_slots, original_value);
+                        Self::sort_slots_by_priority(&mut all_slots, &token, original_value);
                         all_slots.truncate(MAX_SLOT_CANDIDATES);
 
                         slots_to_test.push(SlotMetadata {
@@ -532,12 +521,11 @@ impl<S: SlotDetectionStrategy> SlotDetector<S> {
 
             match responses.get(response_id) {
                 Some(response) => {
-                    let (storage_addr, slot) = &metadata
-                        .all_slots
-                        .first()
-                        .expect("all_slots should not be empty")
-                        .0
-                        .clone();
+                    let Some(((storage_addr, slot), _)) = metadata.all_slots.first() else {
+                        results.insert(metadata.token, Err(SlotDetectorError::TokenNotInTrace));
+                        continue;
+                    };
+                    let (storage_addr, slot) = (storage_addr.clone(), slot.clone());
 
                     // On transport errors (e.g. Arbitrum disallows overriding
                     // precompile addresses), drop this candidate and retry.
@@ -1000,9 +988,44 @@ mod tests {
             ((addr.clone(), slot_c.clone()), U256::from(1500u64)),
         ];
 
-        SlotDetector::<TestFixtureStrategy>::sort_slots_by_priority(&mut slots, original_value);
+        SlotDetector::<TestFixtureStrategy>::sort_slots_by_priority(
+            &mut slots,
+            &addr,
+            original_value,
+        );
 
         // Expected order: slot_b (dist 1), slot_c (dist 500), slot_a (dist 4000)
+        assert_eq!(slots[0].0 .1, slot_b);
+        assert_eq!(slots[1].0 .1, slot_c);
+        assert_eq!(slots[2].0 .1, slot_a);
+    }
+
+    #[test]
+    fn test_sort_slots_by_priority_foreign_address_last() {
+        let token = Address::from([0x11u8; 20]);
+        let foreign = Address::from([0xaau8; 20]);
+        let slot_a = Bytes::from(vec![0x01u8; 32]);
+        let slot_b = Bytes::from(vec![0x02u8; 32]);
+        let slot_c = Bytes::from(vec![0x03u8; 32]);
+
+        let original_value = U256::from(1000u64);
+
+        // slot_a is at a foreign address (e.g. Arbitrum precompile) with closest value,
+        // slot_b and slot_c are at the token address with farther values.
+        // Token-address slots must come before foreign-address slots regardless of distance.
+        let mut slots: SlotValues = vec![
+            ((foreign.clone(), slot_a.clone()), U256::from(999u64)), // distance 1, but foreign
+            ((token.clone(), slot_b.clone()), U256::from(1500u64)),  // distance 500, token
+            ((token.clone(), slot_c.clone()), U256::from(5000u64)),  // distance 4000, token
+        ];
+
+        SlotDetector::<TestFixtureStrategy>::sort_slots_by_priority(
+            &mut slots,
+            &token,
+            original_value,
+        );
+
+        // Token slots first (ordered by distance), foreign slot last
         assert_eq!(slots[0].0 .1, slot_b);
         assert_eq!(slots[1].0 .1, slot_c);
         assert_eq!(slots[2].0 .1, slot_a);
@@ -1050,9 +1073,8 @@ mod tests {
         let slot_a = Bytes::from(vec![0x01u8; 32]);
         let slot_b = Bytes::from(vec![0x02u8; 32]);
 
-        // Both slots are at the token address (the upfront filter in
-        // detect_correct_slots guarantees this). A transport error on
-        // slot_a (e.g. network failure) should retry with slot_b.
+        // A transport error on slot_a (e.g. Arbitrum precompile override rejected)
+        // should drop that candidate and retry with slot_b.
         let slots_to_test = vec![SlotMetadata {
             token: token.clone(),
             original_value: U256::ZERO,
@@ -1120,7 +1142,11 @@ mod tests {
             ((addr.clone(), slot_b.clone()), U256::from(1100u64)),
         ];
 
-        SlotDetector::<TestFixtureStrategy>::sort_slots_by_priority(&mut slots, original_value);
+        SlotDetector::<TestFixtureStrategy>::sort_slots_by_priority(
+            &mut slots,
+            &addr,
+            original_value,
+        );
 
         // Stable sort preserves original order for equal keys
         assert_eq!(slots[0].0 .1, slot_a);
