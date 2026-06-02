@@ -1,3 +1,13 @@
+## [0.303.2](https://github.com/propeller-heads/tycho/compare/0.303.1...0.303.2) (2026-06-02)
+
+
+### Bug Fixes
+
+* **contracts:** guard Vault ERC20 deposit and FeeCalculator setters ([7532fd2](https://github.com/propeller-heads/tycho/commit/7532fd206c37e6ca341778ca5441451879667b1d))
+* **router:** guard Vault ERC20 deposit and FeeCalculator setters ([#1059](https://github.com/propeller-heads/tycho/issues/1059)) ([011391a](https://github.com/propeller-heads/tycho/commit/011391a28a9dbdee03b8e67cc54b5a24725560d0))
+* **router:** Reset deltas to allow batched calls ([b10c10a](https://github.com/propeller-heads/tycho/commit/b10c10a2d0fe9f63a9baabb1a980175f36028d7e))
+* **router:** Reset deltas to allow batched calls ([#1058](https://github.com/propeller-heads/tycho/issues/1058)) ([1fad7b4](https://github.com/propeller-heads/tycho/commit/1fad7b41946d209e419cef6cbb1af2e56d225ad5))
+
 ## [0.303.1](https://github.com/propeller-heads/tycho/compare/0.303.0...0.303.1) (2026-06-02)
 
 
