@@ -1005,7 +1005,8 @@ where
         block_header_opt: Option<BlockHeader>,
     ) -> ProtocolStateDelta {
         if let Some(header) = block_header_opt {
-            // These are current block attributes for native protocols, not VM block env overrides.
+            // Add block_number and block_timestamp attributes to ensure pool states
+            // receive current block information during delta_transition
             delta.updated_attributes.insert(
                 "block_number".to_string(),
                 Bytes::from(header.number.to_be_bytes().to_vec()),
