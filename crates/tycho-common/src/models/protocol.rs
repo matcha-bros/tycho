@@ -165,10 +165,8 @@ pub struct ProtocolComponentStateDelta {
     pub updated_attributes: HashMap<AttrStoreKey, StoreVal>,
     pub deleted_attributes: HashSet<AttrStoreKey>,
     /// Attribute names first introduced with `ChangeType::Creation` in this delta.
-    ///
-    /// Used during chain reorgs: a creation attribute has no prior state, so reverting it means
-    /// emitting a deletion rather than restoring a previous value. Skipped during serialization
-    /// — this is an indexer-internal reorg hint, not part of the public delta format.
+    /// Skipped during serialization — this is an indexer-internal hint, not part of the public
+    /// delta format.
     #[serde(skip)]
     pub created_attributes: HashSet<AttrStoreKey>,
 }

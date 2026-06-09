@@ -35,7 +35,7 @@ pub fn add_default_attributes(mut changes: BlockChanges, attributes: &[&str]) ->
                         component_id: c_id.clone(),
                         updated_attributes: default_attr,
                         deleted_attributes: HashSet::new(),
-                        ..Default::default()
+                        created_attributes: HashSet::new(),
                     },
                 );
             }

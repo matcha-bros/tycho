@@ -1450,7 +1450,7 @@ where
                             .get(&c_id)
                             .unwrap_or(&empty)
                             .clone(),
-                        ..Default::default()
+                        created_attributes: HashSet::new(),
                     })
                     .updated_attributes
                     .insert(key.clone(), value);
