@@ -95,6 +95,7 @@ where
     engine: Option<SimulationEngine<D>>,
     adapter_contract: Option<TychoSimulationContract<D>>,
     adapter_contract_bytecode: Option<Bytecode>,
+    adapter_contract_storage: Option<HashMap<U256, U256>>,
     disable_overwrite_tokens: HashSet<Address>,
     block_overrides: Option<BlockEnvOverrides>,
 }
@@ -121,6 +122,7 @@ where
             engine: None,
             adapter_contract: None,
             adapter_contract_bytecode: None,
+            adapter_contract_storage: None,
             disable_overwrite_tokens: HashSet::new(),
             block_overrides: None,
         }
@@ -190,6 +192,11 @@ where
         self
     }
 
+    pub fn adapter_contract_storage(mut self, storage: HashMap<U256, U256>) -> Self {
+        self.adapter_contract_storage = Some(storage);
+        self
+    }
+
     pub fn disable_overwrite_tokens(mut self, disable_overwrite_tokens: HashSet<Address>) -> Self {
         self.disable_overwrite_tokens = disable_overwrite_tokens;
         self
@@ -214,7 +221,7 @@ where
         };
 
         if self.adapter_contract.is_none() {
-            self.adapter_contract = Some(TychoSimulationContract::new_contract(
+            self.adapter_contract = Some(TychoSimulationContract::new_contract_with_storage(
                 self.adapter_address,
                 self.adapter_contract_bytecode
                     .clone()
@@ -222,6 +229,7 @@ where
                         SimulationError::FatalError("Adapter contract bytecode not set".to_string())
                     })?,
                 engine.clone(),
+                self.adapter_contract_storage.clone(),
             )?)
         };
 

@@ -73,6 +73,15 @@ where
         adapter_contract_bytecode: Bytecode,
         engine: SimulationEngine<D>,
     ) -> Result<Self, SimulationError> {
+        Self::new_contract_with_storage(address, adapter_contract_bytecode, engine, None)
+    }
+
+    pub fn new_contract_with_storage(
+        address: Address,
+        adapter_contract_bytecode: Bytecode,
+        engine: SimulationEngine<D>,
+        storage: Option<HashMap<U256, U256>>,
+    ) -> Result<Self, SimulationError> {
         engine
             .state
             .init_account(
@@ -87,7 +96,7 @@ where
                     )),
                     code: Some(adapter_contract_bytecode),
                 },
-                None,
+                storage,
                 false,
             )
             .map_err(|err| {

@@ -48,6 +48,29 @@ Every integrated protocol requires its own swap executor contract. This contract
 
 The `IExecutor` interface requires three methods:
 
+### SwapVM executor pattern
+
+SwapVM routes use the same TychoRouter executor registry as every other
+protocol. The router does not need a separate SwapVM-only entry point: it
+dispatches to `SwapVMExecutor` when the encoded swap begins with that executor's
+registered address, just as it does for Uniswap, Balancer, Curve, and other
+protocol executors.
+
+`SwapVMExecutor` is intentionally protocol-specific at the boundary where Tycho
+hands off to 1inch Aqua SwapVM. Its v1 payload is packed as:
+
+```text
+version(1) | aquaSwapVMRouter(20) | maker(20) | orderTraits(32) |
+tokenIn(20) | tokenOut(20) | orderData(variable)
+```
+
+The executor reports `ProtocolWillDebit` with the AquaSwapVMRouter as spender,
+so the Dispatcher approves the real SwapVM router to pull the router-held input
+amount. The executor then calls AquaSwapVMRouter with exact-in Aqua-push taker
+traits; Aqua and SwapVM perform the order validation, balance accounting, and
+strategy math. Tycho-side tests may compute expected outputs for assertions, but
+the executor must not replace SwapVM execution with local math.
+
 #### swap
 
 ```solidity

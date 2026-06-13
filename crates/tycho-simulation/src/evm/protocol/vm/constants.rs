@@ -18,6 +18,7 @@ pub const BALANCER_V3: &[u8] = include_bytes!("assets/BalancerV3SwapAdapter.evm.
 pub const CURVE: &[u8] = include_bytes!("assets/CurveSwapAdapter.evm.runtime");
 pub const MAVERICK_V2: &[u8] = include_bytes!("assets/MaverickV2SwapAdapter.evm.runtime");
 pub const LIQUIDITY_PARTY: &[u8] = include_bytes!("assets/LiquidityPartySwapAdapter.evm.runtime");
+pub const AQUA_SWAPVM: &[u8] = include_bytes!("assets/AquaSwapVMSwapAdapter.evm.runtime");
 pub fn get_adapter_file(protocol: &str) -> Result<&'static [u8], SimulationError> {
     match protocol {
         "balancer_v2" => Ok(BALANCER_V2),
@@ -25,6 +26,7 @@ pub fn get_adapter_file(protocol: &str) -> Result<&'static [u8], SimulationError
         "curve" => Ok(CURVE),
         "maverick_v2" => Ok(MAVERICK_V2),
         "liquidityparty" => Ok(LIQUIDITY_PARTY),
+        "aqua_swapvm" => Ok(AQUA_SWAPVM),
         _ => Err(SimulationError::FatalError(format!("Adapter for protocol {protocol} not found"))),
     }
 }

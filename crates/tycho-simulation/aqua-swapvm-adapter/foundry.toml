@@ -1,0 +1,20 @@
+[profile.default]
+src = "src"
+script = "script"
+out = "out"
+libs = ["../../tycho-execution/contracts/lib/forge-std"]
+allow_paths = ["../../tycho-execution/contracts/lib/forge-std"]
+solc = "0.8.30"
+evm_version = "prague"
+optimizer = true
+optimizer_runs = 700
+via_ir = true
+fs_permissions = [{ access = "read-write", path = "./out" }]
+
+[fmt]
+single_line_statement_blocks = "multi"
+multiline_func_header = "all"
+override_spacing = false
+bracket_spacing = true
+int_types = "long"
+number_underscore = "thousands"

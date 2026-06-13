@@ -1,4 +1,5 @@
 mod adapter_contract;
+pub(crate) mod aqua_swapvm;
 pub mod constants;
 mod decoder;
 pub mod erc20_token;

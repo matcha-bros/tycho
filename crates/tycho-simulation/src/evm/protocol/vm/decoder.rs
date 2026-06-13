@@ -12,7 +12,10 @@ use super::{state::EVMPoolState, state_builder::EVMPoolStateBuilder};
 use crate::{
     evm::{
         engine_db::{tycho_db::PreCachedDB, SHARED_TYCHO_DB},
-        protocol::vm::{constants::get_adapter_file, utils::json_deserialize_address_list},
+        protocol::vm::{
+            aqua_swapvm::adapter_storage_from_attrs, constants::get_adapter_file,
+            utils::json_deserialize_address_list,
+        },
         simulation::BlockEnvOverrides,
     },
     protocol::{
@@ -214,6 +217,12 @@ impl TryFromWithBlock<ComponentWithState, BlockHeader> for EVMPoolState<PreCache
                 .trace(vm_traces)
                 .block_overrides(block_overrides);
 
+        if protocol_name == "aqua_swapvm" {
+            let storage = adapter_storage_from_attrs(&id, &snapshot.component.static_attributes)
+                .map_err(InvalidSnapshotError::VMError)?;
+            pool_state_builder = pool_state_builder.adapter_contract_storage(storage);
+        }
+
         if let Some(balance_owner) = balance_owner {
             pool_state_builder = pool_state_builder.balance_owner(balance_owner)
         };
@@ -252,6 +261,7 @@ mod tests {
     fn test_to_adapter_file_name() {
         assert_eq!(get_adapter_file("balancer_v2").unwrap(), BALANCER_V2);
         assert_eq!(get_adapter_file("curve").unwrap(), CURVE);
+        assert!(get_adapter_file("aqua_swapvm").is_ok());
     }
 
     fn vm_component() -> ProtocolComponent {
