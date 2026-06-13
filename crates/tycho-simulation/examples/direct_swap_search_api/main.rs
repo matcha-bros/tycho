@@ -63,6 +63,7 @@ struct DirectQuoteRequest {
     buy_token: String,
     amount_in: String,
     min_amount_out: String,
+    block_number: Option<u64>,
 }
 
 #[derive(Debug, Serialize)]
@@ -75,6 +76,7 @@ struct DirectQuoteResponse {
     wrap_or_unwrap_required: bool,
     amount_in: String,
     min_amount_out: String,
+    block_number: Option<u64>,
     best_quote: Option<QuoteCandidate>,
     meets_min_amount: bool,
     candidate_count: usize,
@@ -251,18 +253,21 @@ async fn search_direct_quote(
         }
         candidate_count += pair_components.len();
 
+        let mut state_params = ProtocolStatesParams::new(Chain::Ethereum, protocol)
+            .with_protocol_ids(
+                pair_components
+                    .iter()
+                    .map(|component| component.id.clone())
+                    .collect(),
+            )
+            .with_include_balances(true);
+        if let Some(block_number) = request.block_number {
+            state_params = state_params.with_block_number(block_number);
+        }
+
         let states = state
             .client
-            .get_protocol_states(
-                ProtocolStatesParams::new(Chain::Ethereum, protocol)
-                    .with_protocol_ids(
-                        pair_components
-                            .iter()
-                            .map(|component| component.id.clone())
-                            .collect(),
-                    )
-                    .with_include_balances(true),
-            )
+            .get_protocol_states(state_params)
             .await?
             .into_data()
             .into_iter()
@@ -333,6 +338,7 @@ async fn search_direct_quote(
         wrap_or_unwrap_required,
         amount_in: amount_in.to_string(),
         min_amount_out: min_amount_out.to_string(),
+        block_number: request.block_number,
         best_quote,
         meets_min_amount,
         candidate_count,

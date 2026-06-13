@@ -170,13 +170,39 @@ curl -sS -X POST http://127.0.0.1:8099/quote/direct \
     "sellToken":"0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
     "buyToken":"0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
     "amountIn":"1000000",
-    "minAmountOut":"1"
+    "minAmountOut":"1",
+    "blockNumber":25308649
   }' | jq .
 ```
 
 The API uses raw integer amounts. It treats native ETH sentinel addresses
 (`0x000...000` and `0xEeee...EEeE`) as WETH for pool search and marks
-`wrapOrUnwrapRequired=true`.
+`wrapOrUnwrapRequired=true`. `blockNumber` is optional and pins protocol state
+requests to a specific Ethereum block.
+
+Pinned blocks are best-effort with hosted Tycho access and should be treated as
+unstable in this MVP. The hosted Fynd plan tested here rejects stale historical
+blocks with `Snapshot block is stale: version is older than the 10 minute limit
+on this plan`. On 2026-06-13, pinned quotes worked for recent blocks but failed
+around 50 Ethereum blocks behind the current head. A one-year-back block also
+failed with the same stale-snapshot error. Use this parameter for short-window
+debug reproducibility only unless the hosted plan is upgraded or the API is
+pointed at our own historical Tycho indexer.
+
+Live, unpinned requests use the latest state served by Tycho, but this example
+cannot report exact server-side data lag because `get_protocol_states` responses
+do not include the indexed block height. The practical freshness signal we can
+observe from this API path is that recent pinned blocks, roughly within the
+hosted plan's 10-minute retention window, succeed while older pinned blocks are
+rejected.
+
+To check live quote freshness, fetch the latest Ethereum block from an RPC you
+trust, then pass that exact value as `blockNumber`. If it succeeds, the quote
+path can serve that block. If it fails as missing or stale, count down from that
+block until the first success; the difference is the observed lag in blocks for
+this API path at that moment. On 2026-06-13, a pinned request for the public RPC
+latest block `25308743` succeeded, so the observed lag was `0` blocks in that
+test.
 
 MVP limitations:
 
