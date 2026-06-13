@@ -97,6 +97,7 @@ tempfile = "3.13.0"
 mockall = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
 anyhow = { workspace = true }
+axum = "0.7.9"
 ratatui = "0.29.0"
 crossterm = { version = "0.28.1", features = ["event-stream"] }
 unicode-width = "0.1.13"

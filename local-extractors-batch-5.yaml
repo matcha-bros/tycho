@@ -1,0 +1,12 @@
+extractors:
+  ekubo_v2:
+    name: "ekubo_v2"
+    chain: "ethereum"
+    implementation_type: "Custom"
+    sync_batch_size: 1000
+    start_block: 22048334
+    protocol_types:
+      - name: "ekubo_v2_pool"
+        financial_type: "Swap"
+    spkg: "protocols/substreams/ethereum-uniswap-v2/ethereum-ekubo-v2.local.spkg"
+    module_name: "map_protocol_changes"

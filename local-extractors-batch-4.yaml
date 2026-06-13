@@ -1,0 +1,24 @@
+extractors:
+  vm:curve:
+    name: "vm:curve"
+    chain: "ethereum"
+    implementation_type: "Vm"
+    sync_batch_size: 1000
+    start_block: 9906598
+    protocol_types:
+      - name: "curve_pool"
+        financial_type: "Swap"
+    spkg: "protocols/substreams/ethereum-uniswap-v2/ethereum-curve.local.spkg"
+    module_name: "map_protocol_changes"
+
+  uniswap_v4:
+    name: "uniswap_v4"
+    chain: "ethereum"
+    implementation_type: "Custom"
+    sync_batch_size: 1000
+    start_block: 21688329
+    protocol_types:
+      - name: "uniswap_v4_pool"
+        financial_type: "Swap"
+    spkg: "protocols/substreams/ethereum-uniswap-v2/ethereum-uniswap-v4-no-hooks.local.spkg"
+    module_name: "map_protocol_changes"

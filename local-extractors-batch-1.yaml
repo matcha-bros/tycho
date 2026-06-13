@@ -1,0 +1,24 @@
+extractors:
+  uniswap_v2:
+    name: "uniswap_v2"
+    chain: "ethereum"
+    implementation_type: "Custom"
+    sync_batch_size: 1000
+    start_block: 10008300
+    protocol_types:
+      - name: "uniswap_v2_pool"
+        financial_type: "Swap"
+    spkg: "protocols/substreams/ethereum-uniswap-v2/ethereum-uniswap-v2.local.spkg"
+    module_name: "map_pool_events"
+
+  sushiswap_v2:
+    name: "sushiswap_v2"
+    chain: "ethereum"
+    implementation_type: "Custom"
+    sync_batch_size: 1000
+    start_block: 10794229
+    protocol_types:
+      - name: "sushiswap_v2_pool"
+        financial_type: "Swap"
+    spkg: "protocols/substreams/ethereum-uniswap-v2/ethereum-sushiswap-v2.local.spkg"
+    module_name: "map_pool_events"

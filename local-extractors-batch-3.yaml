@@ -1,0 +1,24 @@
+extractors:
+  pancakeswap_v2:
+    name: "pancakeswap_v2"
+    chain: "ethereum"
+    implementation_type: "Custom"
+    sync_batch_size: 1000
+    start_block: 15614590
+    protocol_types:
+      - name: "pancakeswap_v2_pool"
+        financial_type: "Swap"
+    spkg: "protocols/substreams/ethereum-uniswap-v2/ethereum-pancakeswap-v2.local.spkg"
+    module_name: "map_pool_events"
+
+  pancakeswap_v3:
+    name: "pancakeswap_v3"
+    chain: "ethereum"
+    implementation_type: "Custom"
+    sync_batch_size: 1000
+    start_block: 16950686
+    protocol_types:
+      - name: "pancakeswap_v3_pool"
+        financial_type: "Swap"
+    spkg: "protocols/substreams/ethereum-uniswap-v2/ethereum-pancakeswap-v3.local.spkg"
+    module_name: "map_protocol_changes"

@@ -1327,6 +1327,10 @@ impl PostgresGateway {
                 async { apply_partitioned_versioning(&sorted, self.retention_horizon, conn).await }
                     .instrument(debug_span!("apply_versioning", count = balance_count))
                     .await?;
+            let to_archive = to_archive
+                .into_iter()
+                .filter(|balance| balance.valid_to != MAX_TS)
+                .collect::<Vec<_>>();
 
             // Insert to_archive in batches if needed
             async {
@@ -1346,12 +1350,18 @@ impl PostgresGateway {
                 let latest = latest
                     .into_iter()
                     .map(orm::NewComponentBalanceLatest::from)
+                    .fold(HashMap::new(), |mut latest_by_id, balance| {
+                        latest_by_id
+                            .insert((balance.protocol_component_id, balance.token_id), balance);
+                        latest_by_id
+                    })
+                    .into_values()
                     .collect::<Vec<_>>();
 
                 if !latest.is_empty() {
-                    for chunk in latest.chunks(orm::NewComponentBalanceLatest::MAX_BATCH_SIZE) {
+                    for balance in latest {
                         diesel::insert_into(schema::component_balance_default::table)
-                            .values(chunk)
+                            .values(&balance)
                             .on_conflict(on_constraint("component_balance_default_unique_pk"))
                             .do_update()
                             .set((
@@ -1595,7 +1605,9 @@ impl PostgresGateway {
                             address.clone(),
                             bals.0,
                             bals.1,
-                            TxHash::from("0x0000000000000000000000000000000000000000000000000000000000000000"),
+                            TxHash::from(
+                                "0x0000000000000000000000000000000000000000000000000000000000000000",
+                            ),
                             component_id.as_str(),
                         );
                         new_balance_map.insert(address.clone(), balance);
@@ -1692,8 +1704,8 @@ impl PostgresGateway {
 
                 // Iterate over states until the component_id no longer matches the current
                 // component id
-                while updates_index < state_updates.len() &&
-                    &state_updates[updates_index].1 == current_component_id
+                while updates_index < state_updates.len()
+                    && &state_updates[updates_index].1 == current_component_id
                 {
                     updates_index += 1;
                 }
@@ -1701,8 +1713,8 @@ impl PostgresGateway {
                 let deleted_start = deletes_index;
                 // Iterate over deleted attributes until the component_id no longer matches the
                 // current component id
-                while deletes_index < deleted_attrs.len() &&
-                    &deleted_attrs[deletes_index].0 == current_component_id
+                while deletes_index < deleted_attrs.len()
+                    && &deleted_attrs[deletes_index].0 == current_component_id
                 {
                     deletes_index += 1;
                 }

@@ -87,6 +87,18 @@ struct Cli {
     /// Path to blocklist TOML config file
     #[arg(long)]
     blocklist_file: Option<std::path::PathBuf>,
+    /// Comma-separated exchanges to register. If omitted, registers the example defaults.
+    #[arg(long, value_delimiter = ',')]
+    exchanges: Vec<String>,
+    /// Comma-separated component IDs to track instead of using the TVL filter.
+    #[arg(long, value_delimiter = ',')]
+    component_ids: Vec<String>,
+    /// Minimum token quality to load from Tycho.
+    #[arg(long, default_value_t = 100)]
+    token_min_quality: i32,
+    /// Maximum token age filter for Tycho token loading, in days.
+    #[arg(long)]
+    max_days_since_last_trade: Option<u64>,
 }
 
 impl Cli {
@@ -135,23 +147,29 @@ async fn main() {
 
     let tycho_api_key: String =
         env::var("TYCHO_API_KEY").unwrap_or_else(|_| "sampletoken".to_string());
+    let tycho_no_tls =
+        env::var("TYCHO_NO_TLS").is_ok_and(|v| matches!(v.as_str(), "1" | "true" | "TRUE"));
 
     let tvl_threshold = cli
         .tvl_threshold
         .unwrap_or_else(|| chain.default_tvl_threshold(TvlThresholdTier::Medium));
-    let tvl_filter = ComponentFilter::with_tvl_range(tvl_threshold, tvl_threshold);
+    let component_filter = if cli.component_ids.is_empty() {
+        ComponentFilter::with_tvl_range(tvl_threshold, tvl_threshold)
+    } else {
+        ComponentFilter::Ids(cli.component_ids.clone())
+    };
 
     let swapper_pk = env::var("PRIVATE_KEY").ok();
 
     println!("Loading tokens from Tycho... {url}", url = tycho_url.as_str());
     let all_tokens = load_all_tokens(
         tycho_url.as_str(),
-        false,
+        tycho_no_tls,
         Some(tycho_api_key.as_str()),
         true,
         chain,
-        None,
-        None,
+        Some(cli.token_min_quality),
+        cli.max_days_since_last_trade,
     )
     .await
     .expect("Failed to load tokens");
@@ -188,62 +206,133 @@ async fn main() {
     let mut amounts_out: HashMap<String, GetAmountOutResult> = HashMap::new();
 
     let mut protocol_stream = ProtocolStreamBuilder::new(&tycho_url, chain);
+    let exchange_enabled = |name: &str| {
+        cli.exchanges.is_empty()
+            || cli
+                .exchanges
+                .iter()
+                .any(|exchange| exchange == name)
+    };
 
     match chain {
         Chain::Ethereum => {
-            protocol_stream = protocol_stream
-                .exchange::<UniswapV2State>("uniswap_v2", tvl_filter.clone(), None)
-                .exchange::<UniswapV2State>("sushiswap_v2", tvl_filter.clone(), None)
-                .exchange::<PancakeswapV2State>("pancakeswap_v2", tvl_filter.clone(), None)
-                .exchange::<UniswapV3State>("uniswap_v3", tvl_filter.clone(), None)
-                .exchange::<UniswapV3State>("pancakeswap_v3", tvl_filter.clone(), None)
-                .exchange::<EVMPoolState<PreCachedDB>>(
+            if exchange_enabled("uniswap_v2") {
+                protocol_stream = protocol_stream.exchange::<UniswapV2State>(
+                    "uniswap_v2",
+                    component_filter.clone(),
+                    None,
+                );
+            }
+            if exchange_enabled("sushiswap_v2") {
+                protocol_stream = protocol_stream.exchange::<UniswapV2State>(
+                    "sushiswap_v2",
+                    component_filter.clone(),
+                    None,
+                );
+            }
+            if exchange_enabled("pancakeswap_v2") {
+                protocol_stream = protocol_stream.exchange::<PancakeswapV2State>(
+                    "pancakeswap_v2",
+                    component_filter.clone(),
+                    None,
+                );
+            }
+            if exchange_enabled("uniswap_v3") {
+                protocol_stream = protocol_stream.exchange::<UniswapV3State>(
+                    "uniswap_v3",
+                    component_filter.clone(),
+                    None,
+                );
+            }
+            if exchange_enabled("pancakeswap_v3") {
+                protocol_stream = protocol_stream.exchange::<UniswapV3State>(
+                    "pancakeswap_v3",
+                    component_filter.clone(),
+                    None,
+                );
+            }
+            if exchange_enabled("vm:balancer_v2") {
+                protocol_stream = protocol_stream.exchange::<EVMPoolState<PreCachedDB>>(
                     "vm:balancer_v2",
-                    tvl_filter.clone(),
+                    component_filter.clone(),
                     Some(balancer_v2_pool_filter),
-                )
-                .exchange::<UniswapV4State>("uniswap_v4", tvl_filter.clone(), None)
-                .exchange::<UniswapV4State>("uniswap_v4_hooks", tvl_filter.clone(), None)
-                // Only uncomment if you have ANGSTROM_API_KEY set
-                // .exchange::<UniswapV4State>("uniswap_v4_hooks", tvl_filter.clone(),
-                // Some(uniswap_v4_angstrom_hook_pool_filter))
-                .exchange::<EkuboState>("ekubo_v2", tvl_filter.clone(), None)
-                .exchange::<EkuboV3State>("ekubo_v3", tvl_filter.clone(), Some(ekubo_v3::filter_fn))
-                .exchange::<EVMPoolState<PreCachedDB>>("vm:curve", tvl_filter.clone(), None)
-                .exchange::<EVMPoolState<PreCachedDB>>("vm:maverick_v2", tvl_filter.clone(), None)
+                );
+            }
+            if exchange_enabled("uniswap_v4") {
+                protocol_stream = protocol_stream.exchange::<UniswapV4State>(
+                    "uniswap_v4",
+                    component_filter.clone(),
+                    None,
+                );
+            }
+            if exchange_enabled("uniswap_v4_hooks") {
+                protocol_stream = protocol_stream.exchange::<UniswapV4State>(
+                    "uniswap_v4_hooks",
+                    component_filter.clone(),
+                    None,
+                );
+            }
+            if exchange_enabled("ekubo_v2") {
+                protocol_stream = protocol_stream.exchange::<EkuboState>(
+                    "ekubo_v2",
+                    component_filter.clone(),
+                    None,
+                );
+            }
+            if exchange_enabled("ekubo_v3") {
+                protocol_stream = protocol_stream.exchange::<EkuboV3State>(
+                    "ekubo_v3",
+                    component_filter.clone(),
+                    Some(ekubo_v3::filter_fn),
+                );
+            }
+            if exchange_enabled("vm:curve") {
+                protocol_stream = protocol_stream.exchange::<EVMPoolState<PreCachedDB>>(
+                    "vm:curve",
+                    component_filter.clone(),
+                    None,
+                );
+            }
+            if exchange_enabled("vm:maverick_v2") {
+                protocol_stream = protocol_stream.exchange::<EVMPoolState<PreCachedDB>>(
+                    "vm:maverick_v2",
+                    component_filter.clone(),
+                    None,
+                );
+            }
         }
         Chain::Base => {
             protocol_stream = protocol_stream
-                .exchange::<UniswapV2State>("uniswap_v2", tvl_filter.clone(), None)
-                .exchange::<UniswapV3State>("uniswap_v3", tvl_filter.clone(), None)
-                .exchange::<UniswapV4State>("uniswap_v4", tvl_filter.clone(), None)
-                .exchange::<UniswapV3State>("pancakeswap_v3", tvl_filter.clone(), None)
+                .exchange::<UniswapV2State>("uniswap_v2", component_filter.clone(), None)
+                .exchange::<UniswapV3State>("uniswap_v3", component_filter.clone(), None)
+                .exchange::<UniswapV4State>("uniswap_v4", component_filter.clone(), None)
+                .exchange::<UniswapV3State>("pancakeswap_v3", component_filter.clone(), None)
                 .exchange::<AerodromeSlipstreamsState>(
                     "aerodrome_slipstreams",
-                    tvl_filter.clone(),
+                    component_filter.clone(),
                     None,
                 )
         }
         Chain::Bsc => {
             protocol_stream = protocol_stream
-                .exchange::<UniswapV2State>("uniswap_v2", tvl_filter.clone(), None)
-                .exchange::<UniswapV3State>("uniswap_v3", tvl_filter.clone(), None)
-                .exchange::<UniswapV4State>("uniswap_v4", tvl_filter.clone(), None)
-                .exchange::<PancakeswapV2State>("pancakeswap_v2", tvl_filter.clone(), None)
-                .exchange::<UniswapV3State>("pancakeswap_v3", tvl_filter.clone(), None)
+                .exchange::<UniswapV2State>("uniswap_v2", component_filter.clone(), None)
+                .exchange::<UniswapV3State>("uniswap_v3", component_filter.clone(), None)
+                .exchange::<UniswapV4State>("uniswap_v4", component_filter.clone(), None)
+                .exchange::<PancakeswapV2State>("pancakeswap_v2", component_filter.clone(), None)
+                .exchange::<UniswapV3State>("pancakeswap_v3", component_filter.clone(), None)
         }
         Chain::Unichain => {
             protocol_stream = protocol_stream
-                .exchange::<UniswapV2State>("uniswap_v2", tvl_filter.clone(), None)
-                .exchange::<UniswapV3State>("uniswap_v3", tvl_filter.clone(), None)
-                .exchange::<UniswapV4State>("uniswap_v4", tvl_filter.clone(), None)
+                .exchange::<UniswapV2State>("uniswap_v2", component_filter.clone(), None)
+                .exchange::<UniswapV3State>("uniswap_v3", component_filter.clone(), None)
+                .exchange::<UniswapV4State>("uniswap_v4", component_filter.clone(), None)
         }
         Chain::Arbitrum => {
             protocol_stream = protocol_stream
-                .exchange::<UniswapV2State>("uniswap_v2", tvl_filter.clone(), None)
-                .exchange::<UniswapV3State>("uniswap_v3", tvl_filter.clone(), None)
-                .exchange::<UniswapV3State>("pancakeswap_v3", tvl_filter.clone(), None)
-                .exchange::<UniswapV4State>("uniswap_v4", tvl_filter.clone(), None)
+                .exchange::<UniswapV2State>("uniswap_v2", component_filter.clone(), None)
+                .exchange::<UniswapV3State>("uniswap_v3", component_filter.clone(), None)
+                .exchange::<UniswapV3State>("pancakeswap_v3", component_filter.clone(), None)
+                .exchange::<UniswapV4State>("uniswap_v4", component_filter.clone(), None)
         }
         _ => {}
     }
@@ -254,6 +343,7 @@ async fn main() {
 
     let protocol_stream = protocol_stream
         .auth_key(Some(tycho_api_key.clone()))
+        .no_tls(tycho_no_tls)
         .skip_state_decode_failures(true)
         .set_tokens(all_tokens.clone())
         .await
@@ -365,9 +455,10 @@ async fn main() {
 
                     if balance < amount_in {
                         let required = format_token_amount(&amount_in, &sell_token);
-                        println!("⚠️ Warning: Insufficient balance for swap. You have {formatted_balance} {sell_symbol} but need {required} {sell_symbol}",
-                                 formatted_balance = formatted_balance,
-                                 sell_symbol = sell_token.symbol,
+                        println!(
+                            "⚠️ Warning: Insufficient balance for swap. You have {formatted_balance} {sell_symbol} but need {required} {sell_symbol}",
+                            formatted_balance = formatted_balance,
+                            sell_symbol = sell_token.symbol,
                         );
                         return;
                     }
@@ -397,7 +488,9 @@ async fn main() {
                 ),
             }
             println!("Would you like to simulate or execute this swap?");
-            println!("Please be aware that the market might move while you make your decision, which might lead to a revert if you've set a min amount out or slippage.");
+            println!(
+                "Please be aware that the market might move while you make your decision, which might lead to a revert if you've set a min amount out or slippage."
+            );
             println!("Warning: slippage is set to 0.25% during execution by default.\n");
             let options = vec!["Simulate the swap", "Execute the swap", "Skip this swap"];
             let selection = Select::with_theme(&ColorfulTheme::default())
@@ -415,7 +508,9 @@ async fn main() {
 
             match choice {
                 "simulate" => {
-                    println!("\nSimulating by performing an approval (for permit2) and a swap transaction...");
+                    println!(
+                        "\nSimulating by performing an approval (for permit2) and a swap transaction..."
+                    );
 
                     let (approval_request, swap_request) = get_tx_requests(
                         provider.clone(),
@@ -481,7 +576,9 @@ async fn main() {
                                 .await
                                 {
                                     Ok(_) => {
-                                        println!("\n✅ Swap executed successfully! Exiting the session...\n");
+                                        println!(
+                                            "\n✅ Swap executed successfully! Exiting the session...\n"
+                                        );
 
                                         // Calculate the correct price ratio
                                         let (forward_price, _reverse_price) = format_price_ratios(
@@ -813,9 +910,9 @@ pub fn encode_input(selector: &str, mut encoded_args: Vec<u8>) -> Vec<u8> {
     // Remove extra prefix if present (32 bytes for dynamic data)
     // Alloy encoding is including a prefix for dynamic data indicating the offset or length
     // but at this point we don't want that
-    if encoded_args.len() > 32 &&
-        encoded_args[..32] ==
-            [0u8; 31]
+    if encoded_args.len() > 32
+        && encoded_args[..32]
+            == [0u8; 31]
                 .into_iter()
                 .chain([32].to_vec())
                 .collect::<Vec<u8>>()
